@@ -1,0 +1,121 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String            @id @default(uuid())
+  email             String            @unique
+  password          String
+  name              String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  challenges        UserChallenge[]
+  walletAddress     String?           @unique
+  userHealthTokens  UserHealthToken[]
+  notifications     Notification[]
+  profileImageUrl   String?
+}
+
+model Challenge {
+  id               String           @id @default(uuid())
+  title            String
+  description      String
+  entryFee         Float
+  startDate        DateTime
+  endDate          DateTime
+  goalType         GoalType
+  goalTarget       Int              // e.g., 5000 steps per day
+  isPrivate        Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  participants     UserChallenge[]
+  invitationCode   String?          @unique
+}
+
+model UserChallenge {
+  id                 String               @id @default(uuid())
+  userId             String
+  challengeId        String
+  joinedAt           DateTime             @default(now())
+  hasCompletedGoal   Boolean              @default(false)
+  paymentStatus      PaymentStatus        @default(PENDING)
+  transactionHash    String?
+  dailyProgress      DailyProgress[]
+  user               User                 @relation(fields: [userId], references: [id])
+  challenge          Challenge            @relation(fields: [challengeId], references: [id])
+
+  @@unique([userId, challengeId])
+}
+
+model DailyProgress {
+  id              String        @id @default(uuid())
+  userChallengeId String
+  date            DateTime
+  progress        Int           // e.g., actual steps taken that day
+  goalAchieved    Boolean
+  verificationData Json?        // Data from health API for verification
+  createdAt       DateTime      @default(now())
+  userChallenge   UserChallenge @relation(fields: [userChallengeId], references: [id])
+
+  @@unique([userChallengeId, date])
+}
+
+model UserHealthToken {
+  id            String    @id @default(uuid())
+  userId        String
+  provider      Provider
+  accessToken   String
+  refreshToken  String?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, provider])
+}
+
+model Notification {
+  id            String           @id @default(uuid())
+  userId        String
+  message       String
+  type          NotificationType
+  read          Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  user          User             @relation(fields: [userId], references: [id])
+}
+
+enum GoalType {
+  STEPS
+  EXERCISE_MINUTES
+  SLEEP_HOURS
+  CUSTOM
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FORFEITED
+  REFUNDED
+}
+
+enum Provider {
+  GOOGLE_FIT
+  APPLE_HEALTH
+  FITBIT
+}
+
+enum NotificationType {
+  CHALLENGE_INVITATION
+  CHALLENGE_START
+  CHALLENGE_END
+  GOAL_ACHIEVED
+  PAYMENT_RECEIVED
+}
