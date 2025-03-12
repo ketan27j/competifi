@@ -1,5 +1,8 @@
 # Node.js dependencies
 node_modules/
+dist/
+coverage/
+.DS_Store
 
 # Environment variables
 .env
