@@ -117,12 +117,14 @@ router.post('/record-progress', authenticate, async (req, res) => {
     });
 
     if (!userChallenge) {
-      return res.status(404).json({ message: 'Challenge participation not found' });
+      res.status(404).json({ message: 'Challenge participation not found' });
+      return;
     }
 
     // Verify that the user owns this challenge participation
     if (userChallenge.userId !== req.user!.id) {
-      return res.status(403).json({ message: 'Not authorized to record progress for this challenge' });
+      res.status(403).json({ message: 'Not authorized to record progress for this challenge' });
+      return;
     }
 
     // Check if goal was achieved

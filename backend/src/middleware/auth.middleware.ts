@@ -19,12 +19,13 @@ export const authenticate = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+) : Promise<void> => {
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Authorization token required' });
+      res.status(401).json({ message: 'Authorization token required' });
+      return;
     }
 
     const token = authHeader.split(' ')[1];
@@ -41,13 +42,16 @@ export const authenticate = async (
     });
 
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      res.status(401).json({ message: 'User not found' });
+      return;
     }
 
     // Attach user to request
     req.user = { id: decoded.id, email: decoded.email };
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid token' });
+    res.status(401).json({ message: 'Invalid token' });
+    next(error);
+    return;
   }
 };

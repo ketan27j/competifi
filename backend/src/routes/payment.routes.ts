@@ -29,7 +29,8 @@ router.post('/stake', authenticate, async (req, res) => {
     });
 
     if (!userChallenge) {
-      return res.status(404).json({ message: 'Challenge participation not found' });
+      res.status(404).json({ message: 'Challenge participation not found' });
+      return;
     }
 
     // Verify the transaction on Solana
@@ -40,7 +41,8 @@ router.post('/stake', authenticate, async (req, res) => {
       );
 
       if (!transaction) {
-        return res.status(400).json({ message: 'Transaction not found on blockchain' });
+        res.status(400).json({ message: 'Transaction not found on blockchain' });
+        return;
       }
 
       // Update payment status
@@ -67,7 +69,8 @@ router.post('/stake', authenticate, async (req, res) => {
       });
     } catch (error) {
       console.error('Blockchain verification error:', error);
-      return res.status(400).json({ message: 'Failed to verify transaction' });
+      res.status(400).json({ message: 'Failed to verify transaction' });
+      return;
     }
   } catch (error) {
     console.error('Payment error:', error);
@@ -92,7 +95,8 @@ router.get('/status/:userChallengeId', authenticate, async (req, res) => {
     });
 
     if (!userChallenge) {
-      return res.status(404).json({ message: 'Challenge participation not found' });
+      res.status(404).json({ message: 'Challenge participation not found' });
+      return;
     }
 
     res.json(userChallenge);
@@ -103,4 +107,13 @@ router.get('/status/:userChallengeId', authenticate, async (req, res) => {
 });
 
 // Distribute rewards for a completed challenge
-router.post('/distribute-rewards/:challengeId', authenticate, async (req
+router.post('/distribute-rewards/:challengeId', authenticate, async (req ,res) => {
+  try{
+
+  } catch(error) {
+    console.error('Error distributing rewards:', error);
+    res.status(500).json({ message: 'Server error' });
+  };
+});
+
+export default router;

@@ -1,4 +1,3 @@
-// backend/src/routes/auth.routes.ts
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -7,14 +6,15 @@ import { prisma } from '../index';
 const router = express.Router();
 
 // Register a new user
-router.post('/register', async (req, res) => {
+router.post('/register', async (req , res) => {
   try {
     const { email, password, name } = req.body;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      res.status(400).json({ message: 'User already exists' });
+      return;
     }
 
     // Hash password
@@ -60,13 +60,15 @@ router.post('/login', async (req, res) => {
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      res.status(400).json({ message: 'Invalid credentials' });
+      return;
     }
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      res.status(400).json({ message: 'Invalid credentials' });
+      return;
     }
 
     // Create token

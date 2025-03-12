@@ -1,5 +1,5 @@
 // backend/src/routes/challenge.routes.ts
-import express from 'express';
+import express, { Request, Response} from 'express';
 import { authenticate } from '../middleware/auth.middleware';
 import { prisma } from '../index';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 const router = express.Router();
 
 // Get all public challenges
-router.get('/public', authenticate, async (req, res) => {
+router.get('/public',authenticate, async (req: Request, res: Response) => {
   try {
     const challenges = await prisma.challenge.findMany({
       where: {
@@ -109,12 +109,14 @@ router.post('/:id/join', authenticate, async (req, res) => {
     });
 
     if (!challenge) {
-      return res.status(404).json({ message: 'Challenge not found' });
+      res.status(404).json({ message: 'Challenge not found' });
+      return;
     }
 
     // Check if the challenge is private and requires an invitation code
     if (challenge.isPrivate && challenge.invitationCode !== invitationCode) {
-      return res.status(403).json({ message: 'Invalid invitation code' });
+      res.status(403).json({ message: 'Invalid invitation code' });
+      return;
     }
 
     // Check if user is already participating
@@ -128,7 +130,8 @@ router.post('/:id/join', authenticate, async (req, res) => {
     });
 
     if (existingParticipation) {
-      return res.status(400).json({ message: 'Already joined this challenge' });
+      res.status(400).json({ message: 'Already joined this challenge' });
+      return;
     }
 
     // Join the challenge
@@ -157,7 +160,8 @@ router.get('/:id/leaderboard', authenticate, async (req, res) => {
     });
 
     if (!challenge) {
-      return res.status(404).json({ message: 'Challenge not found' });
+      res.status(404).json({ message: 'Challenge not found' });
+      return;
     }
 
     // Get participants and their progress
