@@ -1,16 +1,14 @@
-// backend/src/middleware/auth.middleware.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../index';
+import { User as prismaUser } from '@prisma/client';
 
 // Extend Express Request type to include user
 declare global {
   namespace Express {
+    interface User extends prismaUser {}
     interface Request {
-      user?: {
-        id: string;
-        email: string;
-      };
+      user?: prismaUser;  
     }
   }
 }
@@ -47,7 +45,7 @@ export const authenticate = async (
     }
 
     // Attach user to request
-    req.user = { id: decoded.id, email: decoded.email };
+    req.user = user;
     next();
   } catch (error) {
     res.status(401).json({ message: 'Invalid token' });
