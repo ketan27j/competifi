@@ -1,11 +1,12 @@
 import { View, Text, TouchableOpacity, ImageBackground, Image } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/provider/AuthProvider';
+import getGoogleFitData from './services/googleFitService';
 
 const WelcomeScreen = () => {
-  const { signIn } = useAuth();
-  const handleLogin = () => {
-    signIn();
+  const { signIn, signOut } = useAuth();
+  const handleLogin = async () => {
+    await signIn();
   };
 
   return (
