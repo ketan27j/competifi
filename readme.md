@@ -1,5 +1,5 @@
 
-### Competifi - Compete to earn crypto
+# Competifi - Compete to earn crypto
 
 ## Core Features to Build
 
