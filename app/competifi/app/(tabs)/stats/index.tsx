@@ -1,16 +1,32 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuth } from '@/provider/AuthProvider';
+import getGoogleFitData from '@/app/services/googleFitService';
 
 const ProfileScreen = () => {
   const { user, signOut } = useAuth();
-  console.log(user?.data?.user);
+  const [ stepCount, setStepCount ] = useState(0);
+
+  useEffect(() => {
+    const today = new Date();
+    const startDate = new Date(today.setDate(today.getDate() - 30)).toISOString();
+    const endDate = new Date().toISOString();
+    getGoogleFitData(startDate, endDate)
+      .then(steps => {
+        console.log('Steps:', steps);
+        setStepCount(steps[0].steps);
+        steps?.forEach((step) => {
+          console.log(`StepCount: ${step}`);
+        })
+      })
+  }, []);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Stats</Text>
       <Text>Welcome, {user?.data?.user?.name}</Text>
       <Text>Email: {user?.data?.user?.email}</Text>
+      <Text>Steps: {stepCount}</Text>
       <TouchableOpacity style={styles.button} onPress={signOut}>
         <Text style={styles.buttonText}>Sign Out</Text>
       </TouchableOpacity>
