@@ -22,7 +22,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       webClientId: '935241688123-bl4lfpm43k7hguhg8aht2p5c753nihiu.apps.googleusercontent.com', // Get this from Google Cloud Console
       // clientSecret: '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'
       // androidClientId: '935241688123-vf1hf6bvfurhro3fk4ptq4a5o1kne9ua.apps.googleusercontent.com', // Get this from Google Cloud Console
-      scopes: ['profile', 'email', Scopes.FITNESS_ACTIVITY_READ]
+      scopes: ['profile', 
+        'email', 
+        Scopes.FITNESS_ACTIVITY_READ,
+        Scopes.FITNESS_ACTIVITY_WRITE,
+        Scopes.FITNESS_BODY_READ,
+        Scopes.FITNESS_BODY_WRITE,]
     });
     checkUser();
   }, []);
@@ -83,6 +88,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (error) {
           console.log(error);
         }
+      }
+    }
+    else {
+      try {
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        await AsyncStorage.setItem('user', JSON.stringify(userInfo));
+        setUser(JSON.stringify(userInfo));
+        await checkUser();
+      } catch (error) {
+        console.log(error);
       }
     }
   };

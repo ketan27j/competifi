@@ -9,14 +9,14 @@ const ProfileScreen = () => {
 
   useEffect(() => {
     const today = new Date();
-    const startDate = new Date(today.setDate(today.getDate() - 30)).toISOString();
+    const startDate = new Date(today.setDate(today.getDate() - 120)).toISOString();
     const endDate = new Date().toISOString();
     getGoogleFitData(startDate, endDate)
       .then(steps => {
         console.log('Steps:', steps);
         setStepCount(steps[0].steps);
         steps?.forEach((step) => {
-          console.log(`StepCount: ${step}`);
+          console.log(`StepCount: ${step.date}   ${step.steps}`);
         })
       })
   }, []);
