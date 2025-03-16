@@ -87,7 +87,7 @@ const getGoogleFitData = async (startDate: string, endDate: string): Promise<Com
         endDate: endDate || new Date().toISOString(), // End date as provided or current time
     };
     const opt = {
-      startDate: "2025-03-01T00:00:17.971Z", // required ISO8601Timestamp
+      startDate: startDate, //"2025-03-01T00:00:17.971Z", // required ISO8601Timestamp
       endDate: endDate || new Date().toISOString(), // required ISO8601Timestamp
       bucketUnit: BucketUnit.MINUTE, // optional - default "DAY". Valid values: "NANOSECOND" | "MICROSECOND" | "MILLISECOND" | "SECOND" | "MINUTE" | "HOUR" | "DAY"
       bucketInterval: 15, // optional - default 1. 
@@ -96,7 +96,7 @@ const getGoogleFitData = async (startDate: string, endDate: string): Promise<Com
   
     try {
         const res = await GoogleFit.getDailyStepCountSamples(opt);
-        // console.log('daily steps count samples', res);
+        console.log('daily steps count samples', res);
         // const weights = await GoogleFit.getWeightSamples(opt);
         // console.log('daily weight', weights);
         const dailySteps = await GoogleFit.getDailySteps();
