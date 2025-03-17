@@ -49,7 +49,7 @@ export default function TabLayout() {
             },
             tabBarBackground: () => (
               <LinearGradient
-                colors={['#454546', '#000000']}
+                colors={['#000002', '#000000']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0.6588 }}
                 style={{ height: '100%' }}
@@ -73,6 +73,16 @@ export default function TabLayout() {
               title: "Stride",
               tabBarIcon: ({ focused }) => (
                 <Ionicons name="footsteps-sharp" size={28} color="#FED005" />
+              ),
+              headerShown: true
+            }}
+          />
+          <Tabs.Screen 
+            name="challenge/index"
+            options={{
+              title: "Challenge",
+              tabBarIcon: ({ focused }) => (
+                <Entypo name="evernote" size={28} color="#FED005" />
               ),
               headerShown: true
             }}
