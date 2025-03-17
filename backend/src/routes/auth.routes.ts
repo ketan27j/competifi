@@ -1,78 +1,78 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+// import passport from 'passport';
+// import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { prisma } from '../index';
 import { User } from '@prisma/client';
 
 const router = express.Router();
 
 // Configure Google OAuth strategy
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID as string,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-  callbackURL: "/auth/google/callback"
-},
-async (accessToken, refreshToken, profile, done) => {
-  try {
-    // Check if user already exists
-    if (!profile.emails || profile.emails.length === 0) {
-      return done(new Error('No email found in profile'), false);
-    }
-    let user = await prisma.user.findUnique({ where: { email: profile.emails[0].value } });
-    if (!user) {
-      // Create new user
-      user = await prisma.user.create({
-        data: {
-          email: profile.emails ? profile.emails[0].value : '',
-          name: profile.displayName,
-          googleId: profile.id,
-          password: ''
-        }
-      });
-    }
-    done(null, user);
-  } catch (error) {
-    done(error, false);
-  }
-}));
+// passport.use(new GoogleStrategy({
+//   clientID: process.env.GOOGLE_CLIENT_ID as string,
+//   clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+//   callbackURL: "/auth/google/callback"
+// },
+// async (accessToken, refreshToken, profile, done) => {
+//   try {
+//     // Check if user already exists
+//     if (!profile.emails || profile.emails.length === 0) {
+//       return done(new Error('No email found in profile'), false);
+//     }
+//     let user = await prisma.user.findUnique({ where: { email: profile.emails[0].value } });
+//     if (!user) {
+//       // Create new user
+//       user = await prisma.user.create({
+//         data: {
+//           email: profile.emails ? profile.emails[0].value : '',
+//           name: profile.displayName,
+//           googleId: profile.id,
+//           password: ''
+//         }
+//       });
+//     }
+//     done(null, user);
+//   } catch (error) {
+//     done(error, false);
+//   }
+// }));
 
 // Google login route
-router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+// router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 // Google login callback route
-router.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/' }),
-  (req, res) => {
-    if (!req.user) {
-      res.status(400).json({ message: 'User not authenticated' });
-      return;
-    }
+// router.get('/auth/google/callback', 
+//   passport.authenticate('google', { failureRedirect: '/' }),
+//   (req, res) => {
+//     if (!req.user) {
+//       res.status(400).json({ message: 'User not authenticated' });
+//       return;
+//     }
 
-    const user = req.user as User;
+//     const user = req.user as User;
 
-    // Successful authentication, generate token
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
+//     // Successful authentication, generate token
+//     const token = jwt.sign(
+//       { id: user.id, email: user.email },
+//       process.env.JWT_SECRET as string,
+//       { expiresIn: '7d' }
+//     );
 
-    res.json({
-      message: 'Login successful',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name
-      }
-    });
-  }
-);
+//     res.json({
+//       message: 'Login successful',
+//       token,
+//       user: {
+//         id: user.id,
+//         email: user.email,
+//         name: user.name
+//       }
+//     });
+//   }
+// );
 
 // Initialize passport
-router.use(passport.initialize());
+// router.use(passport.initialize());
 
 // Register a new user
 router.post('/register', async (req , res) => {
