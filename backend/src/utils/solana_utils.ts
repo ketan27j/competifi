@@ -1,10 +1,10 @@
 import { generateMnemonic, mnemonicToSeed, mnemonicToSeedSync } from 'bip39';
 import { derivePath } from 'ed25519-hd-key';
-import { Connection, Keypair } from '@solana/web3.js';
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction, TransactionConfirmationStrategy } from '@solana/web3.js';
 import * as sss from 'shamir-secret-sharing';
 import * as crypto from 'crypto';
 
-export class SolanaWallet {
+export class SolanaUtils {
 
     private connection: Connection;
 
@@ -12,7 +12,6 @@ export class SolanaWallet {
       this.connection = connection;
     }
 
-    // Encryption/decryption utilities
     async encrypt(text: string, key: string): Promise<string> {
         const iv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(key, 'hex'), iv);
@@ -35,22 +34,64 @@ export class SolanaWallet {
     }
 
     // Generate a new Solana wallet for a user using HD derivation
-    async createWalletForUser(userId: string): Promise<{ keypair: Keypair }> {
-        // Create a unique derivation path for the user
-        // Format: m/44'/501'/userId'/0' (501 is Solana's coin type)
-        // Using a hash of userId to create a numerical index
+    async createWalletForUser(userId: string): Promise<{ keypair: Keypair, publicKey: string, privateKey: string }> {
         const userIdHash = crypto.createHash('sha256').update(userId).digest();
         const userIndex = userIdHash.readUInt32LE(0) % 2147483648; // Ensure it's a valid index
         const derivationPath = `m/44'/501'/${userIndex}'/0'`;
 
-        // Derive the keypair
         const mn = await generateMnemonic();
         let masterSeed : Buffer = mnemonicToSeedSync(mn);
         const derivedResult = derivePath(derivationPath, masterSeed.toString('hex'));
         const keypair = Keypair.fromSeed(derivedResult.key);
 
-        console.log('Public key', keypair.publicKey.toString(), 'Private key', keypair.secretKey.toString());   
-        return { keypair: keypair };
+        console.log('Public key', keypair.publicKey.toString(), 'Private key String', keypair.secretKey.toString(), "Private key uintarray", keypair.secretKey, "Private key array", Array.from(keypair.secretKey));   
+        return {    
+            keypair,
+            publicKey: keypair.publicKey.toString(),
+            privateKey: keypair.secretKey.toString()
+         };
+    }
+
+    async createKeypairFromPrivateKey(privateKeyBytes:Uint8Array) {
+        return Keypair.fromSecretKey(privateKeyBytes);
+    }
+
+    async createWalletAdapter(keypair: Keypair) {
+        return {
+            publicKey: keypair.publicKey,
+            async signTransaction(transaction: Transaction) {
+                transaction.partialSign(keypair);
+                return transaction;
+            },
+            async signAllTransactions(transactions: Transaction[]) {
+                return transactions.map(tx => {
+                    tx.partialSign(keypair);
+                    return tx;
+                });
+            },
+        };
+    }
+
+    async requestAirdrop(connection: Connection, publicKey: PublicKey, amount = 5) {
+        const signature = await connection.requestAirdrop(
+            publicKey,
+            amount * LAMPORTS_PER_SOL
+        );
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    
+        // Use the signature as the strategy
+        await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight
+        });
+        return signature;
+    }
+
+    async getBalance(connection: Connection, publicKey: PublicKey) {
+        const balance = await connection.getBalance(publicKey);
+        console.log('Balance:', balance / LAMPORTS_PER_SOL);
+        return balance / LAMPORTS_PER_SOL;
     }
 
     // Create a new wallet using Shamir's Secret Sharing
