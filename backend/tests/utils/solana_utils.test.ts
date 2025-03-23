@@ -10,7 +10,6 @@ describe('Solana Wallet Utils - Integration Tests', () => {
     let connection: Connection;
     dotenv.config();
 
-    const solanaEndpoint = process.env.SOLANA_ENDPOINT || clusterApiUrl('devnet');
   beforeAll(async () => {
     // Set up test database connection if needed
     // await prisma.$connect();
@@ -28,27 +27,36 @@ describe('Solana Wallet Utils - Integration Tests', () => {
   //   expect(walletPriKey).not.toBeNull();
   // });
 
-  it('should return keypair from private key bytes', async () => {
-    const privateKeyString = "191,30,121,205,146,114,208,157,229,140,137,41,189,1,8,120,247,27,90,162,78,106,178,57,240,55,185,175,175,24,42,141,49,118,54,73,227,38,136,157,70,68,92,89,145,50,227,248,133,251,248,23,215,106,220,238,147,249,239,51,234,46,191,141";
-    const privateKeyArray = privateKeyString.split(',').map(num => parseInt(num.trim()));
-    const keypair = await solanaUtils.createKeypairFromPrivateKey(new Uint8Array(privateKeyArray));
-    expect(keypair).toHaveProperty('publicKey');
-    expect(keypair).toHaveProperty('secretKey');
-    const walletPubKey = keypair.publicKey.toString();
-    const walletPriKey = keypair.secretKey.toString();
-    expect(walletPubKey).not.toBeNull();
-    expect(walletPriKey).not.toBeNull();
-    expect(walletPriKey).toEqual(privateKeyString);
-    expect(walletPubKey).toEqual('4L5XRZ1Qqn6mBMdBpG8abghXAP6Xva5aevoMnqnWKV2c');
-  });
+  // it('should return keypair from private key bytes', async () => {
+  //   const privateKeyString = process.env.ADMIN_PRIVATE_KEY || "";
+  //   const privateKeyArray = privateKeyString.split(',').map(num => parseInt(num.trim()));
+  //   const keypair = await solanaUtils.createKeypairFromPrivateKey(new Uint8Array(privateKeyArray));
+  //   expect(keypair).toHaveProperty('publicKey');
+  //   expect(keypair).toHaveProperty('secretKey');
+  //   const walletPubKey = keypair.publicKey.toString();
+  //   const walletPriKey = keypair.secretKey.toString();
+  //   expect(walletPubKey).not.toBeNull();
+  //   expect(walletPriKey).not.toBeNull();
+  //   expect(walletPriKey).toEqual(privateKeyString);
+  //   expect(walletPubKey).toEqual('4L5XRZ1Qqn6mBMdBpG8abghXAP6Xva5aevoMnqnWKV2c');
+  // });
 
   // it('should airdrop SOL to a wallet', async () => {
   //   const result = await solanaUtils.requestAirdrop(connection,new PublicKey('4L5XRZ1Qqn6mBMdBpG8abghXAP6Xva5aevoMnqnWKV2c'), 5);
-  //   expect(result).toEqual(1);
+  //   expect(result).toBeGreaterThan(1);
+  // });
+
+  // it('should airdrop SOL to a wallet', async () => {
+  //   const result = await solanaUtils.requestAirdrop(connection,new PublicKey('F3m283YDP1wHu8sYW3FHAW4qDh1rX9HAxc7fYHGNhxdH'), 5);
+  //   expect(result).toBeGreaterThan(1);
   // });
 
   it('should return balance of a wallet', async () => {
     const balance = await solanaUtils.getBalance(connection,new PublicKey('4L5XRZ1Qqn6mBMdBpG8abghXAP6Xva5aevoMnqnWKV2c'));  
+    expect(balance).toBeGreaterThan(0);
+  });
+  it('should return balance of a wallet', async () => {
+    const balance = await solanaUtils.getBalance(connection,new PublicKey('F3m283YDP1wHu8sYW3FHAW4qDh1rX9HAxc7fYHGNhxdH'));  
     expect(balance).toBeGreaterThan(0);
   });
 

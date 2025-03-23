@@ -1,24 +1,26 @@
-import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, TransactionConfirmationStrategy } from '@solana/web3.js';
-import { Program, AnchorProvider, web3, BN } from '@project-serum/anchor';
-import { TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress } from '@solana/spl-token';
+import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, TransactionConfirmationStrategy, Keypair } from '@solana/web3.js';
+import { Program, AnchorProvider, web3, BN, Wallet } from '@project-serum/anchor';
+import { TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 import idl from '../idl/run_stake.json';
 import { Idl } from '@project-serum/anchor';
-import { Wallet } from '@project-serum/anchor/dist/cjs/provider';
+import { Key } from 'readline';
 
 export class StakeClient {
     SOLANA_ENDPOINT: string;
     connection: Connection;
-    wallet: Wallet;
+    adminWallet: Wallet;
+    user1Wallet: Wallet;
     provider: AnchorProvider;
     program: any;
     programId: PublicKey;
     tokenMint: PublicKey;
-    constructor(connection:Connection, wallet: Wallet) {
+    constructor(connection:Connection, adminWallet: Wallet, user1Wallet: Wallet) {
         this.connection = connection;
-        this.wallet = wallet;
+        this.adminWallet = adminWallet;
+        this.user1Wallet = user1Wallet;
         this.SOLANA_ENDPOINT = process.env.SOLANA_ENDPOINT || '';
 
-        this.provider = new AnchorProvider(connection, wallet,{ commitment: 'processed' });
+        this.provider = new AnchorProvider(connection, adminWallet,{ commitment: 'confirmed' });
         
         // Program ID from your deployed contract
         this.programId = new PublicKey("Ae9WRFzaJBd5pfLBHphQdnfS3qa5qEtruPfMfro2n5ko");
@@ -30,137 +32,184 @@ export class StakeClient {
 
     // Initialize a new staking pool
     async initializePool(minStakeAmount:number, lockPeriod:number) {
-        const [poolPda, poolBump] = await PublicKey.findProgramAddress(
-        [Buffer.from("pool"), this.tokenMint.toBuffer()],
-        this.programId
-        );
         
+        // Create admin's wSOL token account
+        const adminWsolAccount = await getOrCreateAssociatedTokenAccount(
+            this.connection,
+            this.adminWallet.payer,
+            this.tokenMint,
+            this.adminWallet.publicKey
+        );
+        console.log("Admin wSOL account", adminWsolAccount.address.toString());
+        // Create user1's wSOL token account and wrap some SOL
+        const user1WsolAccount = await getOrCreateAssociatedTokenAccount(
+            this.connection,
+            this.user1Wallet.payer,
+            this.tokenMint,
+            this.user1Wallet.publicKey
+        );
+        console.log(`User1 wSOL account: ${user1WsolAccount.address.toString()}`);
+
+        const wrapSolAmount = 2 * LAMPORTS_PER_SOL;
+        const wrapSolTransaction = new web3.Transaction().add(
+        SystemProgram.transfer({
+            fromPubkey: this.user1Wallet.publicKey,
+            toPubkey: user1WsolAccount.address,
+            lamports: wrapSolAmount,
+        }),
+        // Sync native instruction to update wrapped SOL balance
+        new web3.TransactionInstruction({
+            keys: [
+            { pubkey: user1WsolAccount.address, isSigner: false, isWritable: true }
+            ],
+            programId: TOKEN_PROGRAM_ID,
+            data: Buffer.from([17]) // SyncNative instruction
+        })
+        );
+        await web3.sendAndConfirmTransaction(
+            this.connection,
+            wrapSolTransaction,
+            [this.user1Wallet.payer]
+          );
+        console.log(`User1 wrapped ${wrapSolAmount / LAMPORTS_PER_SOL} SOL to wSOL`);
+
+        const [poolPda, poolBump] = await PublicKey.findProgramAddressSync(
+            [Buffer.from("pool"), this.tokenMint.toBuffer()],
+            this.programId
+        );
+        console.log("Pool PDA", poolPda.toString());
         // Convert parameters to BN
         const minStakeAmountBN = new BN(minStakeAmount.toString());
         const lockPeriodBN = new BN(lockPeriod.toString());
-        
+
         // Create token accounts for the pool
-        const stakeVault = await getAssociatedTokenAddress(
-        this.tokenMint,
-        poolPda,
-        true // allowOwnerOffCurve
+        const stakeVault = await getOrCreateAssociatedTokenAccount(
+            this.connection,
+            this.adminWallet.payer,
+            this.tokenMint,
+            poolPda,
+            true
         );
-        
-        const rewardVault = await getAssociatedTokenAddress(
-        this.tokenMint,
-        poolPda,
-        true // allowOwnerOffCurve
+        console.log("Stake Vault", stakeVault.address.toString());
+        const rewardVault = await getOrCreateAssociatedTokenAccount(
+            this.connection,
+            this.adminWallet.payer,
+            this.tokenMint,
+            poolPda,
+            true
         );
-        
+        console.log("Reward Vault", rewardVault.address.toString());
         // Oracle public key (replace with your actual oracle)
         const oraclePubkey = new PublicKey("4L5XRZ1Qqn6mBMdBpG8abghXAP6Xva5aevoMnqnWKV2c");
         
         try {
-        const tx = await this.program.methods
-            .initializePool(minStakeAmountBN, lockPeriodBN)
-            .accounts({
-            pool: poolPda,
-            tokenMint: this.tokenMint,
-            stakeVault: stakeVault,
-            rewardVault: rewardVault,
-            authority: this.wallet.publicKey,
-            oracle: oraclePubkey,
-            systemProgram: SystemProgram.programId,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            rent: web3.SYSVAR_RENT_PUBKEY,
-            })
-            .rpc();
-        
-        console.log("Pool initialization successful:", tx);
-        return tx;
+            const tx = await this.program.methods
+                .initializePool(minStakeAmountBN, lockPeriodBN)
+                .accounts({
+                    pool: poolPda,
+                    tokenMint: this.tokenMint,
+                    stakeVault: stakeVault.address,
+                    authority: this.adminWallet.publicKey,
+                    oracle: oraclePubkey,
+                    systemProgram: SystemProgram.programId,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    rent: web3.SYSVAR_RENT_PUBKEY,
+                })
+                .signers(this.adminWallet.payer)
+                .rpc();
+            console.log(`Use 'solana confirm -v ${tx}' to see the logs`);
+            // Confirm transaction
+            await this.connection.confirmTransaction(tx);
+            console.log("Pool initialization successful:", tx);
+            return tx;
         } catch (error) {
-        console.error("Error initializing pool:", error);
-        throw error;
+            console.error("Error initializing pool:", error);
+            throw error;
         }
     }
     
-    // Get pool information
-    async getPoolInfo() {
-        const [poolPda] = await PublicKey.findProgramAddress(
-            [Buffer.from("pool"), this.tokenMint.toBuffer()],
-            this.programId
-        );
-        try {
-            return await this.program.account.stakePool.fetch(poolPda);
-        } catch (error) {
-            console.error("Error fetching pool info:", error);
-            return null;
-        }
-    }
+    // // Get pool information
+    // async getPoolInfo() {
+    //     const [poolPda] = await PublicKey.findProgramAddress(
+    //         [Buffer.from("pool"), this.tokenMint.toBuffer()],
+    //         this.programId
+    //     );
+    //     try {
+    //         return await this.program.account.stakePool.fetch(poolPda);
+    //     } catch (error) {
+    //         console.error("Error fetching pool info:", error);
+    //         return null;
+    //     }
+    // }
 
-    // Get user stake information
-    async getUserStakeInfo(userPubkey = this.wallet.publicKey) {
-        const [poolPda] = await PublicKey.findProgramAddress(
-        [Buffer.from("pool"), this.tokenMint.toBuffer()],
-        this.programId
-        );
+    // // Get user stake information
+    // async getUserStakeInfo(userPubkey = this.wallet.publicKey) {
+    //     const [poolPda] = await PublicKey.findProgramAddress(
+    //     [Buffer.from("pool"), this.tokenMint.toBuffer()],
+    //     this.programId
+    //     );
         
-        const [userStakePda] = await PublicKey.findProgramAddress(
-        [Buffer.from("user_stake"), poolPda.toBuffer(), userPubkey.toBuffer()],
-        this.programId
-        );
+    //     const [userStakePda] = await PublicKey.findProgramAddress(
+    //     [Buffer.from("user_stake"), poolPda.toBuffer(), userPubkey.toBuffer()],
+    //     this.programId
+    //     );
         
-        try {
-            return await this.program.account.userStake.fetch(userStakePda);
-        } catch (error) {
-            console.error("Error fetching user stake info:", error);
-            return null;
-        }
-    }
+    //     try {
+    //         return await this.program.account.userStake.fetch(userStakePda);
+    //     } catch (error) {
+    //         console.error("Error fetching user stake info:", error);
+    //         return null;
+    //     }
+    // }
 
-    // Stake SOL into the pool
-    async stake(amount: number) {
-        const amountLamports = new BN(amount * LAMPORTS_PER_SOL);
+    // // Stake SOL into the pool
+    // async stake(amount: number) {
+    //     const amountLamports = new BN(amount * LAMPORTS_PER_SOL);
         
-        const [poolPda] = await PublicKey.findProgramAddress(
-            [Buffer.from("pool"), this.tokenMint.toBuffer()],
-            this.programId
-        );
+    //     const [poolPda] = await PublicKey.findProgramAddress(
+    //         [Buffer.from("pool"), this.tokenMint.toBuffer()],
+    //         this.programId
+    //     );
         
-        const [userStakePda] = await PublicKey.findProgramAddress(
-            [Buffer.from("user_stake"), poolPda.toBuffer(), this.wallet.publicKey.toBuffer()],
-            this.programId
-        );
+    //     const [userStakePda] = await PublicKey.findProgramAddress(
+    //         [Buffer.from("user_stake"), poolPda.toBuffer(), this.wallet.publicKey.toBuffer()],
+    //         this.programId
+    //     );
         
-        // Get user and pool token accounts
-        const userTokenAccount = await getAssociatedTokenAddress(
-            this.tokenMint,
-            this.wallet.publicKey
-        );
+    //     // Get user and pool token accounts
+    //     const userTokenAccount = await getAssociatedTokenAddress(
+    //         this.tokenMint,
+    //         this.wallet.publicKey
+    //     );
         
-        const poolTokenAccount = await getAssociatedTokenAddress(
-            this.tokenMint,
-            poolPda,
-            true // allowOwnerOffCurve
-        );
+    //     const poolTokenAccount = await getAssociatedTokenAddress(
+    //         this.tokenMint,
+    //         poolPda,
+    //         true // allowOwnerOffCurve
+    //     );
         
-        try {
-            const signature = await this.program.methods
-            .stake(amountLamports)
-            .accounts({
-              pool: poolPda,
-              userStake: userStakePda,
-              userTokenAccount: userTokenAccount,
-              stakeVault: poolTokenAccount,
-              user: this.wallet.publicKey,
-              systemProgram: SystemProgram.programId,
-              tokenProgram: TOKEN_PROGRAM_ID,
-              rent: web3.SYSVAR_RENT_PUBKEY,
-            })
-            .rpc();
+    //     try {
+    //         const signature = await this.program.methods
+    //         .stake(amountLamports)
+    //         .accounts({
+    //           pool: poolPda,
+    //           userStake: userStakePda,
+    //           userTokenAccount: userTokenAccount,
+    //           stakeVault: poolTokenAccount,
+    //           user: this.wallet.publicKey,
+    //           systemProgram: SystemProgram.programId,
+    //           tokenProgram: TOKEN_PROGRAM_ID,
+    //           rent: web3.SYSVAR_RENT_PUBKEY,
+    //         })
+    //         .rpc();
 
-        console.log("Stake successful:", signature);
-        return signature;
-        } catch (error) {
-        console.error("Error staking:", error);
-        throw error;
-        }
-    }
+    //     console.log("Stake successful:", signature);
+    //     return signature;
+    //     } catch (error) {
+    //     console.error("Error staking:", error);
+    //     throw error;
+    //     }
+    // }
 
     // // Unstake SOL from the pool
     // async unstake(amount: number) {
