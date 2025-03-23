@@ -1,18 +1,20 @@
 [toolchain]
 
 [features]
+seeds = false
 resolution = true
 skip-lint = false
 
-[programs.localnet]
+[programs.Devnet]
 competifi = "2jfWXykjoRsbBzg9bgJeUyqW2LPmPFnAGnnEnWH7pTwH"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+generate-idl-types = "yarn run typechain --target=@project-serum/anchor ./target/idl/*.json src/idl-types/"

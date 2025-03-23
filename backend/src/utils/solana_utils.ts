@@ -90,7 +90,7 @@ export class SolanaUtils {
 
     async getBalance(connection: Connection, publicKey: PublicKey) {
         const balance = await connection.getBalance(publicKey);
-        console.log('Balance:', balance / LAMPORTS_PER_SOL);
+        console.log(publicKey.toString(),' Balance: ', balance / LAMPORTS_PER_SOL);
         return balance / LAMPORTS_PER_SOL;
     }
 
